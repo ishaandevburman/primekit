@@ -9,6 +9,7 @@ import (
 type ParallelSegmentedSieve struct {
 	segmentSize uint64
 	workers     int
+	OnProgress  ProgressFunc
 }
 
 func NewParallelSegmentedSieve(segmentSize uint64, workers int) *ParallelSegmentedSieve {
@@ -59,6 +60,8 @@ func (p *ParallelSegmentedSieve) Primes(ctx context.Context, limit uint64, out c
 type segmentResult struct {
 	index  int
 	primes []uint64
+	low    uint64
+	high   uint64
 }
 
 func (p *ParallelSegmentedSieve) PrimesInRange(ctx context.Context, start, end uint64, out chan<- uint64) error {
@@ -121,7 +124,7 @@ func (p *ParallelSegmentedSieve) PrimesInRange(ctx context.Context, start, end u
 				select {
 				case <-ctx.Done():
 					return
-				case resultCh <- segmentResult{index: job.index, primes: primes}:
+				case resultCh <- segmentResult{index: job.index, primes: primes, low: job.low, high: job.high}:
 				}
 			}
 		}()
@@ -134,14 +137,18 @@ func (p *ParallelSegmentedSieve) PrimesInRange(ctx context.Context, start, end u
 	}()
 
 	// Merger: runs in this goroutine, outputs in segment order
+	totalSegments := int((end + segSize - 1) / segSize)
+	onProgress := p.OnProgress
+	var primesFound uint64
 	nextIdx := 0
 	pending := make(map[int][]uint64)
 
 	for r := range resultCh {
 		if r.index == nextIdx {
-			for _, p := range r.primes {
-				if p >= start {
-					out <- p
+			for _, pr := range r.primes {
+				if pr >= start {
+					out <- pr
+					primesFound++
 				}
 			}
 			nextIdx++
@@ -150,6 +157,7 @@ func (p *ParallelSegmentedSieve) PrimesInRange(ctx context.Context, start, end u
 					for _, p := range pr {
 						if p >= start {
 							out <- p
+							primesFound++
 						}
 					}
 					delete(pending, nextIdx)
@@ -157,6 +165,16 @@ func (p *ParallelSegmentedSieve) PrimesInRange(ctx context.Context, start, end u
 				} else {
 					break
 				}
+			}
+			if onProgress != nil {
+				onProgress(Progress{
+					SegmentsDone:  nextIdx,
+					TotalSegments: totalSegments,
+					PrimesFound:   primesFound,
+					CurrentLow:    r.low,
+					CurrentHigh:   r.high,
+					End:           end,
+				})
 			}
 		} else {
 			pending[r.index] = r.primes

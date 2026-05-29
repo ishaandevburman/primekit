@@ -46,6 +46,7 @@ Commands:
   gaps <limit>  List prime gaps up to limit
   bench         Run benchmark suite
   status        Show store statistics
+  monitor       TUI dashboard with real-time progress
   help          Show this help
 
 Flags:
@@ -105,6 +106,8 @@ Flags:
 		cmdServe(ctx, cfg)
 	case "status":
 		cmdStatus(ctx, cfg)
+	case "monitor":
+		cmdMonitor(ctx, cfg)
 	case "help":
 		flag.Usage()
 	default:

@@ -8,6 +8,7 @@ import (
 type SegmentedSieve struct {
 	segmentSize uint64
 	name        string
+	OnProgress  ProgressFunc
 }
 
 func NewSegmentedSieve(segmentSize uint64) *SegmentedSieve {
@@ -69,16 +70,15 @@ func (s *SegmentedSieve) PrimesInRange(ctx context.Context, start, end uint64, o
 
 	basePrimes := simpleSieve(sqrtLimit)
 
+	totalSegments := int((limit + segmentSize - 1) / segmentSize)
+	onProgress := s.OnProgress
+	var primesFound uint64
+	var segsDone int
+
 	low := uint64(2)
 	high := segmentSize
 
 	for low <= limit {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
 		if high > limit {
 			high = limit
 		}
@@ -101,6 +101,8 @@ func (s *SegmentedSieve) PrimesInRange(ctx context.Context, start, end uint64, o
 			}
 		}
 
+		lastLow := low
+		lastHigh := high
 		for i, marked := range segment {
 			if marked {
 				p := low + uint64(i)
@@ -110,8 +112,21 @@ func (s *SegmentedSieve) PrimesInRange(ctx context.Context, start, end uint64, o
 						return ctx.Err()
 					case out <- p:
 					}
+					primesFound++
 				}
 			}
+		}
+
+		segsDone++
+		if onProgress != nil {
+			onProgress(Progress{
+				SegmentsDone:  segsDone,
+				TotalSegments: totalSegments,
+				PrimesFound:   primesFound,
+				CurrentLow:    lastLow,
+				CurrentHigh:   lastHigh,
+				End:           limit,
+			})
 		}
 
 		low = high + 1
