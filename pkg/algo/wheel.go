@@ -166,6 +166,12 @@ func (w *WheelSegmentedSieve) PrimesInRange(ctx context.Context, start, end uint
 			}
 
 			first := ((low + bp - 1) / bp) * bp
+			if first < bp*bp {
+				first = bp * bp
+			}
+			if first > high {
+				continue
+			}
 			for j := first; j <= high; j += bp {
 				r := j % wheelMod
 				pos := wheelResIndex[r]
