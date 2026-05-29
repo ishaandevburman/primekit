@@ -1,0 +1,28 @@
+# Binaries
+/bin/
+/output/
+
+# Build output
+*.out
+*.exe
+*.test
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+*.db
+*.sqlite
+*.bin
+data/
+checkpoint/
+
+# Environment
+.env
