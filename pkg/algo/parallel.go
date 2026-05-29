@@ -3,7 +3,6 @@ package algo
 import (
 	"context"
 	"math"
-	"sort"
 	"sync"
 )
 
@@ -57,6 +56,11 @@ func (p *ParallelSegmentedSieve) Primes(ctx context.Context, limit uint64, out c
 	return p.PrimesInRange(ctx, 2, limit, out)
 }
 
+type segmentResult struct {
+	index  int
+	primes []uint64
+}
+
 func (p *ParallelSegmentedSieve) PrimesInRange(ctx context.Context, start, end uint64, out chan<- uint64) error {
 	defer close(out)
 	if end < 2 {
@@ -81,76 +85,91 @@ func (p *ParallelSegmentedSieve) PrimesInRange(ctx context.Context, start, end u
 		numWorkers = 1
 	}
 
-	var mu sync.Mutex
-	var wg sync.WaitGroup
 	segCh := make(chan segmentJob, numWorkers*2)
-	results := make(chan uint64, 65536)
+	resultCh := make(chan segmentResult, numWorkers*2)
 
-	outputDone := make(chan struct{})
+	var wg sync.WaitGroup
+
+	// Feed segments
 	go func() {
-		for p := range results {
+		defer close(segCh)
+		low := uint64(2)
+		high := segSize
+		index := 0
+		for low <= end {
+			if high > end {
+				high = end
+			}
 			select {
 			case <-ctx.Done():
 				return
-			case out <- p:
+			case segCh <- segmentJob{low: low, high: high, index: index}:
 			}
+			low = high + 1
+			high += segSize
+			index++
 		}
-		close(outputDone)
 	}()
 
+	// Workers
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for job := range segCh {
+				primes := sieveSegment(job.low, job.high, basePrimes)
 				select {
 				case <-ctx.Done():
 					return
-				default:
+				case resultCh <- segmentResult{index: job.index, primes: primes}:
 				}
-
-				primes := sieveSegment(job.low, job.high, basePrimes)
-				mu.Lock()
-				for _, p := range primes {
-					if p >= start {
-						results <- p
-					}
-				}
-				mu.Unlock()
 			}
 		}()
 	}
 
-	low := uint64(2)
-	high := segSize
-	for low <= end {
-		select {
-		case <-ctx.Done():
-			close(segCh)
-			wg.Wait()
-			close(results)
-			<-outputDone
-			return ctx.Err()
-		default:
+	// Close resultCh when all workers finish
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	// Merger: runs in this goroutine, outputs in segment order
+	nextIdx := 0
+	pending := make(map[int][]uint64)
+
+	for r := range resultCh {
+		if r.index == nextIdx {
+			for _, p := range r.primes {
+				if p >= start {
+					out <- p
+				}
+			}
+			nextIdx++
+			for {
+				if pr, ok := pending[nextIdx]; ok {
+					for _, p := range pr {
+						if p >= start {
+							out <- p
+						}
+					}
+					delete(pending, nextIdx)
+					nextIdx++
+				} else {
+					break
+				}
+			}
+		} else {
+			pending[r.index] = r.primes
 		}
-		if high > end {
-			high = end
-		}
-		segCh <- segmentJob{low: low, high: high}
-		low = high + 1
-		high += segSize
 	}
 
-	close(segCh)
-	wg.Wait()
-	close(results)
-	<-outputDone
 	return nil
 }
 
 type segmentJob struct {
-	low  uint64
-	high uint64
+	low   uint64
+	high  uint64
+	index int
 }
 
 func sieveSegment(low, high uint64, basePrimes []uint64) []uint64 {
@@ -178,25 +197,4 @@ func sieveSegment(low, high uint64, basePrimes []uint64) []uint64 {
 		}
 	}
 	return primes
-}
-
-func mergeSortedSlices(slices [][]uint64) []uint64 {
-	if len(slices) == 0 {
-		return nil
-	}
-	if len(slices) == 1 {
-		return slices[0]
-	}
-
-	// Flatten and sort (all slices are already individually sorted)
-	var total int
-	for _, s := range slices {
-		total += len(s)
-	}
-	result := make([]uint64, 0, total)
-	for _, s := range slices {
-		result = append(result, s...)
-	}
-	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
-	return result
 }
