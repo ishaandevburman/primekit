@@ -5,39 +5,45 @@ import (
 	"math"
 )
 
-var wheel210 = struct {
-	primes   []uint64
-	product  uint64
-	offsets  []uint64
-	offsetSz int
-}{
-	primes:  []uint64{2, 3, 5, 7},
-	product: 210,
-}
+const (
+	wheelMod     = 210
+	wheelProdStr = "2·3·5·7"
+)
+
+var (
+	wheelPrimes   = []uint64{2, 3, 5, 7}
+	wheelResidues = computeResidues()
+	wheelResIndex [wheelMod]int // wheelResIndex[r] = position in wheelResidues, -1 if not coprime
+)
 
 func init() {
-	wheel210.offsets = computeWheelOffsets(wheel210.primes, wheel210.product)
-	wheel210.offsetSz = len(wheel210.offsets)
+	for i := range wheelResIndex {
+		wheelResIndex[i] = -1
+	}
+	for i, r := range wheelResidues {
+		wheelResIndex[r] = i
+	}
 }
 
-func computeWheelOffsets(primes []uint64, product uint64) []uint64 {
-	sieve := make([]bool, product)
-	for i := uint64(0); i < product; i++ {
+func computeResidues() []uint64 {
+	sieve := make([]bool, wheelMod)
+	for i := uint64(2); i < wheelMod; i++ {
 		sieve[i] = true
 	}
-	for _, p := range primes {
-		for j := p; j < product; j += p {
+	sieve[0] = false // 0 is divisible by all primes
+	sieve[1] = true  // 1 is coprime to 210
+	for _, p := range wheelPrimes {
+		for j := p; j < wheelMod; j += p {
 			sieve[j] = false
 		}
 	}
-	sieve[1] = false
-	var offsets []uint64
-	for i := uint64(1); i < product; i++ {
+	var res []uint64
+	for i := uint64(1); i < wheelMod; i++ {
 		if sieve[i] {
-			offsets = append(offsets, i)
+			res = append(res, i)
 		}
 	}
-	return offsets
+	return res
 }
 
 type WheelSegmentedSieve struct {
@@ -48,16 +54,15 @@ func NewWheelSegmentedSieve(segmentSize uint64) *WheelSegmentedSieve {
 	if segmentSize == 0 {
 		segmentSize = 1 << 20
 	}
+	// round segment size down to multiple of wheelMod
+	segmentSize = (segmentSize / wheelMod) * wheelMod
+	if segmentSize < wheelMod {
+		segmentSize = wheelMod
+	}
 	return &WheelSegmentedSieve{segmentSize: segmentSize}
 }
 
-func (w *WheelSegmentedSieve) Name() string { return "wheel-segmented-210" }
-
-func (w *WheelSegmentedSieve) SetSegmentSize(size uint64) {
-	if size > 0 {
-		w.segmentSize = size
-	}
-}
+func (w *WheelSegmentedSieve) Name() string { return "wheel-210" }
 
 func (w *WheelSegmentedSieve) NthPrime(ctx context.Context, n uint64) (uint64, error) {
 	if n == 0 {
@@ -97,40 +102,41 @@ func (w *WheelSegmentedSieve) PrimesInRange(ctx context.Context, start, end uint
 	if start < 2 {
 		start = 2
 	}
-
-	if end < wheel210.product {
+	if end < wheelMod {
 		simple := &SimpleSieve{}
 		return simple.PrimesInRange(ctx, start, end, out)
 	}
 
-	for _, p := range wheel210.primes {
-		if p >= start {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case out <- p:
-			}
-		}
-	}
-	if start > wheel210.product {
-		goto mainSieve
-	}
-	start = wheel210.product + 1
-
-mainSieve:
 	limit := end
-	segSize := w.segmentSize
-	if segSize > limit {
-		segSize = limit
-	}
 	sqrtLimit := uint64(math.Sqrt(float64(limit)))
 	basePrimes := simpleSieve(sqrtLimit)
 
-	low := start
-	high := start + segSize - 1
-	if high > limit {
-		high = limit
+	// Handle the pre-wheel region (< wheelMod) with the simple sieve
+	if start < wheelMod {
+		preEnd := uint64(wheelMod - 1)
+		if preEnd > limit {
+			preEnd = limit
+		}
+		for i := start; i <= preEnd; i++ {
+			if isPrimeSqrt(i) {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case out <- i:
+				}
+			}
+		}
+		if limit < wheelMod {
+			return nil
+		}
 	}
+
+	// Align low to the next wheel boundary
+	low := ((start + wheelMod - 1) / wheelMod) * wheelMod
+	if low < wheelMod {
+		low = wheelMod
+	}
+	residueCnt := len(wheelResidues)
 
 	for low <= limit {
 		select {
@@ -139,13 +145,17 @@ mainSieve:
 		default:
 		}
 
-		segSizeActual := high - low + 1
-		segment := make([]bool, segSizeActual)
+		high := low + w.segmentSize - 1
+		if high > limit {
+			high = limit
+		}
+
+		numBlocks := (high-low)/wheelMod + 1
+		segLen := int(numBlocks) * residueCnt
+		segment := make([]bool, segLen)
 		for i := range segment {
 			segment[i] = true
 		}
-
-		skipSmall := low/wheel210.product
 
 		for _, bp := range basePrimes {
 			if bp <= 7 {
@@ -155,25 +165,22 @@ mainSieve:
 				break
 			}
 
-			var first uint64
-			r := low % bp
-			if r == 0 {
-				first = low
-			} else {
-				first = low + bp - r
-			}
-			startVal := first
-			for startVal < (skipSmall+1)*wheel210.product {
-				startVal += bp
-			}
-			for j := startVal; j <= high; j += bp {
-				segment[j-low] = false
+			first := ((low + bp - 1) / bp) * bp
+			for j := first; j <= high; j += bp {
+				r := j % wheelMod
+				pos := wheelResIndex[r]
+				if pos >= 0 {
+					block := (j - low) / wheelMod
+					segment[int(block)*residueCnt+pos] = false
+				}
 			}
 		}
 
-		for i, marked := range segment {
+		for k, marked := range segment {
 			if marked {
-				p := low + uint64(i)
+				block := k / residueCnt
+				ridx := k % residueCnt
+				p := low + uint64(block)*wheelMod + wheelResidues[ridx]
 				if p >= start && p <= limit {
 					select {
 					case <-ctx.Done():
@@ -185,10 +192,6 @@ mainSieve:
 		}
 
 		low = high + 1
-		high += segSize
-		if high > limit {
-			high = limit
-		}
 	}
 	return nil
 }

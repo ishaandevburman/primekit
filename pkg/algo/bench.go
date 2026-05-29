@@ -35,7 +35,7 @@ func NewBenchmarkSuite() *BenchmarkSuite {
 			&SimpleSieve{},
 			&SegmentedSieve{segmentSize: 1 << 16, name: "segmented-64k"},
 			&SegmentedSieve{segmentSize: 1 << 20, name: "segmented-1m"},
-			&SegmentedSieve{segmentSize: 1 << 24, name: "segmented-16m"},
+			NewWheelSegmentedSieve(1 << 20),
 			par,
 		},
 	}

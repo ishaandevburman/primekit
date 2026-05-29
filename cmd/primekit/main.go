@@ -27,7 +27,7 @@ func main() {
 
 	flag.StringVar(&cfg.storePath, "store", "primekit.bin", "path to binary prime store")
 	flag.StringVar(&cfg.dbPath, "db", "primekit.db", "path to SQLite metadata store")
-	flag.StringVar(&cfg.algoName, "algo", "segmented", "algorithm (naive, sqrt, simple, segmented, parallel)")
+	flag.StringVar(&cfg.algoName, "algo", "segmented", "algorithm (naive, sqrt, simple, segmented, wheel, parallel)")
 	flag.IntVar(&cfg.workers, "workers", 4, "number of worker goroutines")
 	flag.BoolVar(&cfg.raw, "raw", false, "raw output (no stderr)")
 
@@ -364,8 +364,8 @@ func pickGenerator(cfg config) algo.NamedGenerator {
 		return &algo.SimpleSieve{}
 	case "segmented":
 		return algo.NewSegmentedSieve(1 << 20)
-	// case "wheel":
-	// 	wheel sieve needs a rewrite; use "segmented" or "parallel" instead
+	case "wheel":
+		return algo.NewWheelSegmentedSieve(1 << 20)
 	case "parallel":
 		return algo.NewParallelSegmentedSieve(1<<20, cfg.workers)
 	default:
