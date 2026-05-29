@@ -29,7 +29,6 @@ func (s *SimpleSieve) NthPrime(ctx context.Context, n uint64) (uint64, error) {
 }
 
 func (s *SimpleSieve) Primes(ctx context.Context, limit uint64, out chan<- uint64) error {
-	defer close(out)
 	return s.PrimesInRange(ctx, 2, limit, out)
 }
 

@@ -7,6 +7,7 @@ import (
 
 type SegmentedSieve struct {
 	segmentSize uint64
+	name        string
 }
 
 func NewSegmentedSieve(segmentSize uint64) *SegmentedSieve {
@@ -16,7 +17,12 @@ func NewSegmentedSieve(segmentSize uint64) *SegmentedSieve {
 	return &SegmentedSieve{segmentSize: segmentSize}
 }
 
-func (s *SegmentedSieve) Name() string { return "segmented-sieve" }
+func (s *SegmentedSieve) Name() string {
+	if s.name != "" {
+		return s.name
+	}
+	return "segmented-sieve"
+}
 
 func (s *SegmentedSieve) NthPrime(ctx context.Context, n uint64) (uint64, error) {
 	if n == 0 {
