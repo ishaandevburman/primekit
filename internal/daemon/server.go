@@ -21,17 +21,6 @@ type Server struct {
 	server   *http.Server
 }
 
-type StoreRequest struct {
-	Primes []uint64 `json:"primes"`
-}
-
-type PrimeResponse struct {
-	Prime   uint64 `json:"prime,omitempty"`
-	IsPrime bool   `json:"is_prime,omitempty"`
-	Count   uint64 `json:"count,omitempty"`
-	Error   string `json:"error,omitempty"`
-}
-
 type StatusResponse struct {
 	PrimesStored uint64 `json:"primes_stored"`
 	MaxPrime     uint64 `json:"max_prime"`
@@ -96,61 +85,61 @@ func (s *Server) handleStore(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
-	var req StoreRequest
+	var req store.StoreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, PrimeResponse{Error: err.Error()})
+		writeJSON(w, http.StatusBadRequest, store.PrimeResponse{Error: err.Error()})
 		return
 	}
 	if err := s.binStore.Store(r.Context(), req.Primes); err != nil {
-		writeJSON(w, http.StatusInternalServerError, PrimeResponse{Error: err.Error()})
+		writeJSON(w, http.StatusInternalServerError, store.PrimeResponse{Error: err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, PrimeResponse{Count: uint64(len(req.Primes))})
+	writeJSON(w, http.StatusOK, store.PrimeResponse{Count: uint64(len(req.Primes))})
 }
 
 func (s *Server) handleIsPrime(w http.ResponseWriter, r *http.Request) {
 	n, err := extractUint(r.URL.Path, "/isprime/")
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, PrimeResponse{Error: err.Error()})
+		writeJSON(w, http.StatusBadRequest, store.PrimeResponse{Error: err.Error()})
 		return
 	}
 	found, _ := s.binStore.Contains(r.Context(), n)
 	if found {
-		writeJSON(w, http.StatusOK, PrimeResponse{Prime: n, IsPrime: true})
+		writeJSON(w, http.StatusOK, store.PrimeResponse{Prime: n, IsPrime: true})
 		return
 	}
 	mr := &algo.MillerRabin{}
-	writeJSON(w, http.StatusOK, PrimeResponse{Prime: n, IsPrime: mr.IsPrime(r.Context(), n)})
+	writeJSON(w, http.StatusOK, store.PrimeResponse{Prime: n, IsPrime: mr.IsPrime(r.Context(), n)})
 }
 
 func (s *Server) handleNth(w http.ResponseWriter, r *http.Request) {
 	n, err := extractUint(r.URL.Path, "/nth/")
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, PrimeResponse{Error: err.Error()})
+		writeJSON(w, http.StatusBadRequest, store.PrimeResponse{Error: err.Error()})
 		return
 	}
 	if s.binStore.Count() > n {
 		primes := s.binStore.Data()
-		writeJSON(w, http.StatusOK, PrimeResponse{Prime: primes[n]})
+		writeJSON(w, http.StatusOK, store.PrimeResponse{Prime: primes[n]})
 		return
 	}
 	p, err := s.gen.NthPrime(r.Context(), n)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, PrimeResponse{Error: err.Error()})
+		writeJSON(w, http.StatusInternalServerError, store.PrimeResponse{Error: err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, PrimeResponse{Prime: p})
+	writeJSON(w, http.StatusOK, store.PrimeResponse{Prime: p})
 }
 
 func (s *Server) handlePrimes(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 	if limitStr == "" {
-		writeJSON(w, http.StatusBadRequest, PrimeResponse{Error: "missing limit parameter"})
+		writeJSON(w, http.StatusBadRequest, store.PrimeResponse{Error: "missing limit parameter"})
 		return
 	}
 	limit, err := strconv.ParseUint(limitStr, 10, 64)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, PrimeResponse{Error: err.Error()})
+		writeJSON(w, http.StatusBadRequest, store.PrimeResponse{Error: err.Error()})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

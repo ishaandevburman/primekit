@@ -24,14 +24,10 @@ clean:
 
 # Quick smoke test (rebuilds and runs basic checks without persisting)
 smoke: build
-	@echo "=== smoke: isprime ==="
-	$(BIN) isprime 17
-	@echo "=== smoke: count ==="
-	$(BIN) count 1000
-	@echo "=== smoke: factor ==="
-	$(BIN) factor 1234567890
-	@echo "=== smoke: nth ==="
-	$(BIN) nth 100
+	@$(BIN) isprime 17 | grep -q yes && echo "PASS isprime 17"
+	@$(BIN) count 1000 | grep -q 168 && echo "PASS count 1000 = 168"
+	@$(BIN) factor 1234567890 | grep -q "2 × 3 × 3 × 5 × 3607 × 3803" && echo "PASS factor 1234567890"
+	@$(BIN) nth 100 | head -1 | grep -q 547 && echo "PASS nth 100 = 547"
 
 # Full integration test (uses on-disk stores)
 check: build reset-data

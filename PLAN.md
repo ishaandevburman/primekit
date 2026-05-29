@@ -199,14 +199,14 @@ primekit/
 
 ## 8. Milestones
 
-| Phase | What |
-|-------|------|
-| **P0** | Core interface, segmented sieve, binary store, CLI: `nth`, `sieve`, `isprime` |
-| **P1** | All QueenJewels algos ported, benchmark suite |
-| **P2** | SQLite store, `count` (π(x)), `factor`, `gaps` |
-| **P3** | Parallel segmented sieve, Bloom filter, incremental computation |
-| **P4** | Storage daemon, REST/gRPC server, TUI dashboard |
-| **P5** | WebAssembly, wheel-factorised Pritchard, Meissel-Lehmer |
+| Phase | Status | What |
+|-------|--------|------|
+| **P0** | ✅ | Core interface, segmented sieve, binary store, CLI: `nth`, `sieve`, `isprime` |
+| **P1** | ✅ | All QueenJewels algos ported, benchmark suite |
+| **P2** | ✅ | SQLite store, `count` (π(x)), `factor`, `gaps` |
+| **P3** | ✅ | Parallel segmented sieve, Bloom filter, incremental computation |
+| **P4** | ✅ | Storage daemon, REST API, Makefile with safe targets |
+| **P5** | 🚧 | WebAssembly, Pritchard's sieve, Meissel-Lehmer π(x) |
 
 ---
 

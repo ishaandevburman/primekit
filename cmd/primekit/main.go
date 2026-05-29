@@ -27,7 +27,7 @@ func main() {
 
 	flag.StringVar(&cfg.storePath, "store", "primekit.bin", "path to binary prime store")
 	flag.StringVar(&cfg.dbPath, "db", "primekit.db", "path to SQLite metadata store")
-	flag.StringVar(&cfg.algoName, "algo", "segmented", "algorithm (naive, sqrt, simple, segmented, wheel, parallel)")
+	flag.StringVar(&cfg.algoName, "algo", "segmented", "algorithm (naive, sqrt, simple, segmented, parallel)")
 	flag.IntVar(&cfg.workers, "workers", 4, "number of worker goroutines")
 	flag.BoolVar(&cfg.raw, "raw", false, "raw output (no stderr)")
 
@@ -364,8 +364,8 @@ func pickGenerator(cfg config) algo.NamedGenerator {
 		return &algo.SimpleSieve{}
 	case "segmented":
 		return algo.NewSegmentedSieve(1 << 20)
-	case "wheel":
-		return algo.NewWheelSegmentedSieve(1 << 20)
+	// case "wheel":
+	// 	wheel sieve needs a rewrite; use "segmented" or "parallel" instead
 	case "parallel":
 		return algo.NewParallelSegmentedSieve(1<<20, cfg.workers)
 	default:
@@ -380,9 +380,10 @@ func cmdServe(ctx context.Context, cfg config) {
 		fail("daemon: %v", err)
 	}
 	addr := ":8080"
-	if len(os.Args) > 2 {
-		addr = os.Args[2]
+	if flag.NArg() > 1 {
+		addr = flag.Arg(1)
 	}
+	msg("listening on %s", addr)
 	if err := srv.ListenAndServe(addr); err != nil {
 		fail("serve: %v", err)
 	}
