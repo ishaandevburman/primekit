@@ -25,6 +25,7 @@ type NamedGenerator interface {
 	Name() string
 	NthPrime(ctx context.Context, n uint64) (uint64, error)
 	Primes(ctx context.Context, limit uint64, out chan<- uint64) error
+	PrimesInRange(ctx context.Context, start, end uint64, out chan<- uint64) error
 }
 
 func NewBenchmarkSuite() *BenchmarkSuite {

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"primekit/internal/daemon"
 	"primekit/pkg/algo"
 	"primekit/pkg/store"
 )
@@ -100,6 +101,8 @@ Flags:
 		cmdGaps(ctx, cfg, limit)
 	case "bench":
 		cmdBench(ctx, cfg)
+	case "serve":
+		cmdServe(ctx, cfg)
 	case "status":
 		cmdStatus(ctx, cfg)
 	case "help":
@@ -145,7 +148,31 @@ func cmdSieve(ctx context.Context, cfg config, limit uint64) {
 	gen := pickGenerator(cfg)
 	start := time.Now()
 
-	var allPrimes []uint64
+	st, err := store.NewBinaryStore(cfg.storePath)
+	if err != nil {
+		msg("store: %v (will not persist)", err)
+	}
+
+	startFrom := uint64(2)
+	var existing []uint64
+	if st != nil {
+		existing = st.Data()
+		if uint64(len(existing)) > 0 {
+			startFrom = existing[len(existing)-1] + 1
+		}
+	}
+	if startFrom > limit {
+		msg("already have primes up to %d", limit)
+		if st != nil {
+			st.Close()
+		}
+		if len(existing) > 0 {
+			out(existing[len(existing)-1])
+		}
+		return
+	}
+
+	var newPrimes []uint64
 	var mu sync.Mutex
 	ch := make(chan uint64, 65536)
 	var wg sync.WaitGroup
@@ -154,30 +181,34 @@ func cmdSieve(ctx context.Context, cfg config, limit uint64) {
 		defer wg.Done()
 		for p := range ch {
 			mu.Lock()
-			allPrimes = append(allPrimes, p)
+			newPrimes = append(newPrimes, p)
 			mu.Unlock()
 		}
 	}()
 
-	if err := gen.Primes(ctx, limit, ch); err != nil {
+	if err := gen.PrimesInRange(ctx, startFrom, limit, ch); err != nil {
 		fail("sieve: %v", err)
 	}
 	wg.Wait()
 	elapsed := time.Since(start)
 
-	st, err := store.NewBinaryStore(cfg.storePath)
-	if err == nil {
-		st.Store(ctx, allPrimes)
+	total := uint64(len(existing) + len(newPrimes))
+
+	if st != nil {
+		st.Store(ctx, newPrimes)
 		st.Close()
 	}
-	if sq, err := store.NewSQLiteStore(cfg.dbPath); err == nil {
-		sq.RecordSegment(ctx, 2, limit, uint64(len(allPrimes)), gen.Name(), elapsed)
+	if sq, sqErr := store.NewSQLiteStore(cfg.dbPath); sqErr == nil {
+		sq.RecordSegment(ctx, startFrom, limit, uint64(len(newPrimes)), gen.Name(), elapsed)
 		sq.Close()
 	}
 
-	msg("found %d primes up to %d in %v", len(allPrimes), limit, elapsed)
-	if len(allPrimes) > 0 {
-		out(allPrimes[len(allPrimes)-1])
+	msg("found %d new primes from %d to %d in %v (total stored: %d)",
+		len(newPrimes), startFrom, limit, elapsed, total)
+	if len(newPrimes) > 0 {
+		out(newPrimes[len(newPrimes)-1])
+	} else if len(existing) > 0 {
+		out(existing[len(existing)-1])
 	}
 }
 
@@ -306,9 +337,13 @@ func cmdStatus(ctx context.Context, cfg config) {
 		if len(bencs) > 0 {
 			msg("  recent benchmarks: %d", len(bencs))
 			for _, b := range bencs {
-				label := fmt.Sprintf("n=%d", b.NValue)
-				if b.NValue == nil || *b.NValue == 0 {
+				var label string
+				if b.NValue != nil && *b.NValue > 0 {
+					label = fmt.Sprintf("n=%d", *b.NValue)
+				} else if b.LimitValue != nil && *b.LimitValue > 0 {
 					label = fmt.Sprintf("≤%d", *b.LimitValue)
+				} else {
+					label = "?"
 				}
 				msg("    %s  %s  %dms  %d primes",
 					b.Algorithm, label, b.ElapsedMs, b.PrimesFound)
@@ -336,6 +371,20 @@ func pickGenerator(cfg config) algo.NamedGenerator {
 	default:
 		fail("unknown algorithm: %s", cfg.algoName)
 		return nil
+	}
+}
+
+func cmdServe(ctx context.Context, cfg config) {
+	srv, err := daemon.NewServer(cfg.storePath, cfg.dbPath)
+	if err != nil {
+		fail("daemon: %v", err)
+	}
+	addr := ":8080"
+	if len(os.Args) > 2 {
+		addr = os.Args[2]
+	}
+	if err := srv.ListenAndServe(addr); err != nil {
+		fail("serve: %v", err)
 	}
 }
 
