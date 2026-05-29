@@ -54,40 +54,6 @@ func (s *SimpleSieve) PrimesInRange(ctx context.Context, start, end uint64, out 
 	return nil
 }
 
-func simpleSieve(limit uint64) []uint64 {
-	if limit < 2 {
-		return nil
-	}
-	n := int(limit + 1)
-	isPrime := make([]bool, n)
-	for i := 2; i < n; i++ {
-		isPrime[i] = true
-	}
-	sqrt := int(math.Sqrt(float64(limit)))
-	for i := 2; i <= sqrt; i++ {
-		if isPrime[i] {
-			step := i
-			start := i * i
-			for j := start; j < n; j += step {
-				isPrime[j] = false
-			}
-		}
-	}
-	var count int
-	for i := 2; i < n; i++ {
-		if isPrime[i] {
-			count++
-		}
-	}
-	primes := make([]uint64, 0, count)
-	for i := 2; i < n; i++ {
-		if isPrime[i] {
-			primes = append(primes, uint64(i))
-		}
-	}
-	return primes
-}
-
 func estimateUpperBound(n uint64) uint64 {
 	if n < 6 {
 		return 15

@@ -206,8 +206,8 @@ primekit/
 | **P2** | ✅ | SQLite store, `count` (π(x)), `factor`, `gaps` |
 | **P3** | ✅ | Parallel segmented sieve, Bloom filter, incremental computation |
 | **P4** | ✅ | Storage daemon, REST API, Makefile with safe targets |
-| **P5.1** | 🚧 | Sieve of Pritchard — O(n log n / log log n) comparison-based sieve |
-| **P5.2** | 🚧 | Meissel-Lehmer — sublinear π(x), π(10¹²) in <50ms |
+| **P5.1** | ✅ | Sieve of Pritchard — O(n log n / log log n) comparison-based sieve |
+| **P5.2** | ✅ | Meissel-Lehmer — sublinear π(x), π(10¹²) in ~8.5s (Go); <50ms target requires Deleglise-Rivat or LMO algorithm |
 | **P6.1** | 🚧 | TUI dashboard (`primekit monitor`) |
 | **P6.2** | 🚧 | WebAssembly compile target + HTML harness |
 
