@@ -74,6 +74,12 @@ func (s *PritchardSieve) generate(limit uint64) []uint64 {
 		isPrime := false
 		if p > maxProd {
 			isPrime = true
+			for _, q := range found {
+				if p%q == 0 {
+					isPrime = false
+					break
+				}
+			}
 		} else if W[p] {
 			isPrime = true
 		}
@@ -81,7 +87,6 @@ func (s *PritchardSieve) generate(limit uint64) []uint64 {
 			continue
 		}
 
-		primes = append(primes, p)
 		found = append(found, p)
 
 		newMax := p * maxProd
@@ -93,7 +98,7 @@ func (s *PritchardSieve) generate(limit uint64) []uint64 {
 			for x := maxProd + 1; x <= newMax; x++ {
 				W[x] = true
 			}
-			for _, q := range found {
+			for _, q := range found[:len(found)-1] {
 				if q > newMax {
 					break
 				}
@@ -105,15 +110,28 @@ func (s *PritchardSieve) generate(limit uint64) []uint64 {
 			maxProd = newMax
 		}
 
-		for k := p; k <= maxProd; k += p {
+		for k := p + p; k <= maxProd; k += p {
 			W[k] = false
 		}
 	}
 
+	if maxProd < limit {
+		for x := maxProd + 1; x <= limit; x++ {
+			W[x] = true
+		}
+		for _, q := range found {
+			if q > limit {
+				break
+			}
+			first := ((maxProd + 1 + q - 1) / q) * q
+			for k := first; k <= limit; k += q {
+				W[k] = false
+			}
+		}
+	}
+
 	for x := uint64(2); x <= limit; x++ {
-		if x <= maxProd && W[x] {
-			primes = append(primes, x)
-		} else if x > maxProd {
+		if W[x] {
 			primes = append(primes, x)
 		}
 	}
