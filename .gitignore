@@ -6,6 +6,7 @@
 *.out
 *.exe
 *.test
+/primekit
 
 # IDE
 .vscode/
