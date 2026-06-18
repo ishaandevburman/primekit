@@ -1,4 +1,4 @@
-module primekit
+module github.com/ishaandevburman/primekit
 
 go 1.26.2
 

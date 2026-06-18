@@ -208,7 +208,7 @@ primekit/
 | **P4** | ✅ | Storage daemon, REST API, Makefile with safe targets |
 | **P5.1** | ✅ | Sieve of Pritchard — O(n log n / log log n) comparison-based sieve |
 | **P5.2** | ✅ | Meissel-Lehmer — sublinear π(x), π(10¹²) in ~3.5s (Go, parallel); <50ms target requires Deleglise-Rivat (P6.2) |
-| **P6.1** | 🚧 | TUI dashboard (`primekit monitor`) — sieve progress, store stats, bench history via bubbletea/tview |
+| **P6.1** | 🚧 | TUI dashboard (`primekit monitor`) — store stats, command runner with real-time progress, custom form (command/arg/algo/workers/store/db) + run button |
 | **P6.2** | 🔬 | Research: GPU-accelerated segmented sieve (CUDA/OpenCL) for bulk prime generation |
 | **P6.3** | 🚧 | Deleglise-Rivat π(x) algorithm — sub-50ms target for π(10¹²); research-level implementation |
 

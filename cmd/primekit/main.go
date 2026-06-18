@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"primekit/internal/daemon"
-	"primekit/pkg/algo"
-	"primekit/pkg/store"
+	"github.com/ishaandevburman/primekit/internal/daemon"
+	"github.com/ishaandevburman/primekit/pkg/algo"
+	"github.com/ishaandevburman/primekit/pkg/store"
 )
 
 type config struct {

@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	"primekit/pkg/algo"
-	"primekit/pkg/store"
+	"github.com/ishaandevburman/primekit/pkg/algo"
+	"github.com/ishaandevburman/primekit/pkg/store"
 )
 
 type Server struct {

@@ -185,7 +185,7 @@ primekit status
 ## Library Usage
 
 ```go
-import "primekit/pkg/algo"
+import "github.com/ishaandevburman/primekit/pkg/algo"
 
 // Count primes up to 10^12 — fastest method in the library
 count, err := algo.MeisselLehmer(ctx, 1e12)

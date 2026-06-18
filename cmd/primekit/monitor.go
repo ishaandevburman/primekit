@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"github.com/ishaandevburman/primekit/pkg/algo"
 
-	"primekit/pkg/algo"
-	"primekit/pkg/store"
+	"github.com/ishaandevburman/primekit/pkg/store"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -204,10 +204,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case statsMsg:
 		m.stats = msg
-		return m, tea.Batch(
-			func() tea.Msg { return m.pollStats() },
-			tea.Tick(5*time.Second, nil),
-		)
+		return m, tea.Tick(5*time.Second, func(t time.Time) tea.Msg {
+			return m.pollStats()
+		})
 	}
 
 	return m, nil
